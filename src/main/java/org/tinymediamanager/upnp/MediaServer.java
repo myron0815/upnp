@@ -2,6 +2,7 @@ package org.tinymediamanager.upnp;
 
 import java.io.IOException;
 
+import org.fourthline.cling.DefaultUpnpServiceConfiguration;
 import org.fourthline.cling.UpnpService;
 import org.fourthline.cling.UpnpServiceImpl;
 import org.fourthline.cling.binding.LocalServiceBindingException;
@@ -23,54 +24,57 @@ import org.tinymediamanager.core.movie.MovieModuleManager;
 
 public class MediaServer implements Runnable {
 
-	public static void main(String[] args) throws Exception {
-		// Start a user thread that runs the UPnP stack
-		Thread serverThread = new Thread(new MediaServer());
-		serverThread.setDaemon(false);
-		serverThread.start();
-	}
+  public static void main(String[] args) throws Exception {
+    // Start a user thread that runs the UPnP stack
+    Thread serverThread = new Thread(new MediaServer());
+    serverThread.setDaemon(false);
+    serverThread.start();
+  }
 
-	public void run() {
-		try {
-			TmmModuleManager.getInstance().startUp();
-			MovieModuleManager.getInstance().startUp();
+  public void run() {
+    try {
+      TmmModuleManager.getInstance().startUp();
+      MovieModuleManager.getInstance().startUp();
 
-			final UpnpService upnpService = new UpnpServiceImpl();
-			Runtime.getRuntime().addShutdownHook(new Thread() {
-				@Override
-				public void run() {
-					upnpService.shutdown();
-				}
-			});
+      final UpnpService upnpService = new UpnpServiceImpl(new DefaultUpnpServiceConfiguration());
+      Runtime.getRuntime().addShutdownHook(new Thread() {
+        @Override
+        public void run() {
+          upnpService.shutdown();
+        }
+      });
 
-			// Add the bound local device to the registry
-			upnpService.getRegistry().addDevice(createDevice());
-			System.out.println("go!");
-		} catch (Exception ex) {
-			System.err.println("Exception occured: " + ex);
-			ex.printStackTrace(System.err);
-			System.exit(1);
-		}
-	}
+      // Add the bound local device to the registry
+      upnpService.getRegistry().addDevice(createDevice());
+      System.out.println("go!");
+    }
+    catch (Exception ex) {
+      System.err.println("Exception occured: " + ex);
+      ex.printStackTrace(System.err);
+      System.exit(1);
+    }
+  }
 
-	public static LocalDevice createDevice() throws ValidationException, LocalServiceBindingException, IOException {
-		DeviceIdentity identity = new DeviceIdentity(UDN.uniqueSystemIdentifier("tinyMediaManager"));
-		DeviceType type = new UDADeviceType("MediaServer", 3);
-		DeviceDetails details = new DeviceDetails("Friendly Binary Light", new ManufacturerDetails("ACME"),
-				new ModelDetails("BinLight2000", "A demo light with on/off switch.", "v1"));
+  @SuppressWarnings({ "rawtypes", "unchecked" })
+  public static LocalDevice createDevice() throws ValidationException, LocalServiceBindingException, IOException {
+    DeviceIdentity identity = new DeviceIdentity(UDN.uniqueSystemIdentifier("tinyMediaManager"));
+    DeviceType type = new UDADeviceType("MediaServer", 3);
+    DeviceDetails details = new DeviceDetails("Friendly Binary Light", new ManufacturerDetails("ACME"),
+        new ModelDetails("BinLight2000", "A demo light with on/off switch.", "v1"));
 
-		LocalService localServices[] = { null, null };
+    LocalService localServices[] = { null, null };
 
-		LocalService cds = new AnnotationLocalServiceBinder().read(ContentDirectoryService.class);
-		cds.setManager(new DefaultServiceManager<ContentDirectoryService>(cds, ContentDirectoryService.class));
-		localServices[0] = cds;
+    // Content Directory Service
+    LocalService cds = new AnnotationLocalServiceBinder().read(ContentDirectoryService.class);
+    cds.setManager(new DefaultServiceManager<ContentDirectoryService>(cds, ContentDirectoryService.class));
+    localServices[0] = cds;
 
-		LocalService<ConnectionManagerService> cms = new AnnotationLocalServiceBinder()
-				.read(ConnectionManagerService.class);
-		cms.setManager(new DefaultServiceManager<>(cms, ConnectionManagerService.class));
-		localServices[1] = cms;
+    // Connection Manager Service
+    LocalService<ConnectionManagerService> cms = new AnnotationLocalServiceBinder().read(ConnectionManagerService.class);
+    cms.setManager(new DefaultServiceManager<>(cms, ConnectionManagerService.class));
+    localServices[1] = cms;
 
-		return new LocalDevice(identity, type, details, localServices);
+    return new LocalDevice(identity, type, details, localServices);
 
-	}
+  }
 }
