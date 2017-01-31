@@ -27,5 +27,6 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry including="**/*.properties" kind="src" path="locale"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
