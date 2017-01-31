@@ -1,6 +1,7 @@
 package org.tinymediamanager.upnp;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.fourthline.cling.support.contentdirectory.AbstractContentDirectoryService;
@@ -13,16 +14,19 @@ import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.PersonWithRole;
 import org.fourthline.cling.support.model.Res;
 import org.fourthline.cling.support.model.SortCriterion;
+import org.fourthline.cling.support.model.container.StorageFolder;
 import org.fourthline.cling.support.model.item.Movie;
 import org.tinymediamanager.core.entities.MediaFile;
 import org.tinymediamanager.core.movie.MovieList;
 import org.tinymediamanager.core.movie.entities.MovieActor;
 import org.tinymediamanager.core.movie.entities.MovieProducer;
+import org.tinymediamanager.core.tvshow.TvShowList;
 import org.tinymediamanager.scraper.entities.MediaGenres;
 
 public class ContentDirectoryService extends AbstractContentDirectoryService {
 
-	private int counter = 0;
+	private static final String ID_MOVIES = "movies";
+	private static final String ID_TVSHOWS = "tvshows";
 
 	@Override
 	public BrowseResult browse(String objectID, BrowseFlag browseFlag, String filter, long firstResult, long maxResults,
@@ -31,19 +35,53 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 			// ITEMS:
 			// https://github.com/4thline/cling/tree/master/support/src/main/java/org/fourthline/cling/support/model/item
 
-			if (objectID.equals("0") && browseFlag.equals(BrowseFlag.METADATA)) {
-				System.out.println("Browse MetaData called");
-			} else if (objectID.equals("0") && browseFlag.equals(BrowseFlag.DIRECT_CHILDREN)) {
-				System.out.println("Browse Children called");
-			}
+			System.out.println("ObjectId:" + objectID);
+			System.out.println("BrowseFlag:" + browseFlag);
+			System.out.println("Filter:" + filter);
+			System.out.println("FirstResult:" + firstResult);
+			System.out.println("MaxResults:" + maxResults);
+			System.out.println("OrderBy:" + Arrays.toString(orderby));
 
 			DIDLContent didl = new DIDLContent();
 
-			for (org.tinymediamanager.core.movie.entities.Movie m : MovieList.getInstance().getMovies()) {
-				didl.addItem(getUpnpMovie(m));
+			if (objectID.equals("0") && browseFlag.equals(BrowseFlag.METADATA)) {
+				// ???
+				StorageFolder cont = new StorageFolder();
+				cont.setId(ID_MOVIES);
+				cont.setTitle("Movies");
+				cont.setParentID("0");
+				didl.addContainer(cont);
+				return new BrowseResult(new DIDLParser().generate(didl), 1, 1);
+			} else if (objectID.equals("0") && browseFlag.equals(BrowseFlag.DIRECT_CHILDREN)) {
+				StorageFolder cont = new StorageFolder();
+				cont.setId(ID_MOVIES);
+				cont.setTitle("Movies");
+				cont.setParentID("0");
+				didl.addContainer(cont);
+
+				cont = new StorageFolder();
+				cont.setId(ID_TVSHOWS);
+				cont.setTitle("TV Shows");
+				cont.setParentID("0");
+				didl.addContainer(cont);
+				return new BrowseResult(new DIDLParser().generate(didl), 2, 2);
 			}
 
-			int count = MovieList.getInstance().getMovieCount();
+			int count = 0;
+			if (ID_MOVIES.equals(objectID)) {
+				for (org.tinymediamanager.core.movie.entities.Movie m : MovieList.getInstance().getMovies()) {
+					didl.addItem(getUpnpMovie(m));
+				}
+				count = MovieList.getInstance().getMovieCount();
+			} else if (ID_TVSHOWS.equals(objectID)) {
+				for (org.tinymediamanager.core.tvshow.entities.TvShow m : TvShowList.getInstance().getTvShows()) {
+					// didl.addItem(getUpnpTvShow(m));
+				}
+				count = TvShowList.getInstance().getTvShowCount();
+			} else {
+				// ???
+			}
+
 			return new BrowseResult(new DIDLParser().generate(didl), count, count);
 
 		} catch (Exception ex) {
@@ -60,13 +98,12 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 
 	private Movie getUpnpMovie(org.tinymediamanager.core.movie.entities.Movie tmmMovie) {
 
-		counter++;
-		System.out.println(counter + " " + tmmMovie.getTitle());
+		System.out.println(tmmMovie.getTitle());
 		Movie m = new Movie();
 		try {
-			m.setId(String.valueOf(counter));
+			m.setId(tmmMovie.getDbId().toString());
 			m.setCreator("tmm");
-			m.setParentID("parent");
+			m.setParentID(ID_MOVIES);
 
 			// m.setDirectors();
 			m.setTitle(tmmMovie.getTitle());
