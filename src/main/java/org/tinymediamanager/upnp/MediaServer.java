@@ -1,6 +1,8 @@
 package org.tinymediamanager.upnp;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 import org.fourthline.cling.DefaultUpnpServiceConfiguration;
 import org.fourthline.cling.UpnpService;
@@ -37,16 +39,15 @@ public class MediaServer implements Runnable {
       MovieModuleManager.getInstance().startUp();
 
       final UpnpService upnpService = new UpnpServiceImpl(new DefaultUpnpServiceConfiguration());
-      Runtime.getRuntime().addShutdownHook(new Thread() {
-        @Override
-        public void run() {
-          upnpService.shutdown();
-        }
-      });
 
       // Add the bound local device to the registry
       upnpService.getRegistry().addDevice(createDevice());
-      System.out.println("go!");
+
+      System.out.println("Press enter to exit");
+      BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+      String s = br.readLine();
+      upnpService.getRouter().shutdown();
+      upnpService.shutdown();
     }
     catch (Exception ex) {
       System.err.println("Exception occured: " + ex);
@@ -58,23 +59,21 @@ public class MediaServer implements Runnable {
   @SuppressWarnings({ "rawtypes", "unchecked" })
   public static LocalDevice createDevice() throws ValidationException, LocalServiceBindingException, IOException {
     DeviceIdentity identity = new DeviceIdentity(UDN.uniqueSystemIdentifier("tinyMediaManager"));
-    DeviceType type = new UDADeviceType("MediaServer", 3);
-    DeviceDetails details = new DeviceDetails("Friendly Binary Light", new ManufacturerDetails("ACME"),
+    DeviceType type = new UDADeviceType("MediaServer", 1);
+    DeviceDetails details = new DeviceDetails("Test", new ManufacturerDetails("tinyMediaManager", "http://tinymediamanager.org/"),
         new ModelDetails("BinLight2000", "A demo light with on/off switch.", "v1"));
 
-    LocalService localServices[] = { null, null };
+    System.out.println("Hello, i'm " + identity.getUdn().getIdentifierString());
 
     // Content Directory Service
     LocalService cds = new AnnotationLocalServiceBinder().read(ContentDirectoryService.class);
     cds.setManager(new DefaultServiceManager<ContentDirectoryService>(cds, ContentDirectoryService.class));
-    localServices[0] = cds;
 
     // Connection Manager Service
     LocalService<ConnectionManagerService> cms = new AnnotationLocalServiceBinder().read(ConnectionManagerService.class);
     cms.setManager(new DefaultServiceManager<>(cms, ConnectionManagerService.class));
-    localServices[1] = cms;
 
-    return new LocalDevice(identity, type, details, localServices);
+    return new LocalDevice(identity, type, details, new LocalService[] { cds, cms });
 
   }
 }
