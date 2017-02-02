@@ -27,6 +27,7 @@ public class WebServer extends NanoHTTPD {
   @Override
   public Response serve(IHTTPSession session) {
     String uri = session.getUri();
+    LOGGER.info("Incoming: " + uri);
 
     if (uri.startsWith("/upnp")) {
       String[] path = StringUtils.split(uri, '/');
