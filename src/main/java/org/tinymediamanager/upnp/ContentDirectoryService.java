@@ -2,6 +2,7 @@ package org.tinymediamanager.upnp;
 
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -194,8 +195,8 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 
       for (MediaFile mf : tmmMovie.getMediaFiles()) {
         String rel = tmmMovie.getPathNIO().relativize(mf.getFileAsPath()).toString().replaceAll("\\\\", "/");
-        Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(),
-            "http://" + IP + ":8008/upnp/movies/" + tmmMovie.getDbId().toString() + "/" + rel);
+        String url = "http://" + IP + ":8008/upnp/movies/" + tmmMovie.getDbId().toString() + "/" + URLEncoder.encode(rel, "UTF-8");
+        Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(), url);
         m.addResource(r);
       }
     }
