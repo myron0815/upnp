@@ -27,6 +27,7 @@ public class WebServer extends NanoHTTPD {
   @Override
   public Response serve(IHTTPSession session) {
     String uri = session.getUri();
+
     if (uri.startsWith("/upnp")) {
       String[] path = StringUtils.split(uri, '/');
       // [0] = upnp
@@ -40,7 +41,7 @@ public class WebServer extends NanoHTTPD {
         MediaFile mf = new MediaFile();
         mf.setPath(m.getPathNIO().toString());
         mf.setFilename(fname);
-        return serveFile(session.getHeaders(), mf);
+        return serveFile(session, session.getHeaders(), mf);
       }
     }
 
@@ -48,8 +49,8 @@ public class WebServer extends NanoHTTPD {
   }
 
   // CLONE from nanohttp-webserver (supporting ranges)
-  // reworked for NIO Path and MF access
-  Response serveFile(Map<String, String> header, MediaFile file) {
+  // reworked for NIO Path and MF access, and not sending content on HEAD requests
+  private Response serveFile(IHTTPSession session, Map<String, String> header, MediaFile file) {
     LOGGER.debug("Serving: " + file.getFileAsPath());
     Response res;
     try {
@@ -145,8 +146,13 @@ public class WebServer extends NanoHTTPD {
           res.addHeader("ETag", etag);
         }
         else {
-          // supply the file
-          res = newFixedLengthResponse(Response.Status.OK, mime, Files.newInputStream(file.getFileAsPath()), (int) file.getFilesize());
+          if (session.getMethod() == Method.HEAD) {
+            res = newFixedLengthResponse(Response.Status.OK, mime, null, fileLen);
+          }
+          else {
+            // supply the file
+            res = newFixedLengthResponse(Response.Status.OK, mime, Files.newInputStream(file.getFileAsPath()), fileLen);
+          }
           res.addHeader("Accept-Ranges", "bytes");
           res.addHeader("Content-Length", "" + fileLen);
           res.addHeader("ETag", etag);
