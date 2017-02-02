@@ -156,6 +156,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       m.setParentID(ID_MOVIES);
       m.addProperty(new DC.DATE(tmmMovie.getYear())); // no setDate on Movie (but on other items)???
       m.setTitle(tmmMovie.getTitle());
+      m.setCreator("tmm"); // mandatory, else not browseable!
 
       if (full) {
         // TODO: m.setDirectors();
