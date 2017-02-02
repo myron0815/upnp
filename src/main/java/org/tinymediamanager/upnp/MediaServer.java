@@ -1,8 +1,6 @@
 package org.tinymediamanager.upnp;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
 import org.fourthline.cling.DefaultUpnpServiceConfiguration;
 import org.fourthline.cling.UpnpService;
@@ -21,37 +19,20 @@ import org.fourthline.cling.model.types.DeviceType;
 import org.fourthline.cling.model.types.UDADeviceType;
 import org.fourthline.cling.model.types.UDN;
 import org.fourthline.cling.support.connectionmanager.ConnectionManagerService;
-import org.tinymediamanager.core.TmmModuleManager;
-import org.tinymediamanager.core.movie.MovieModuleManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MediaServer implements Runnable {
+  private static final Logger LOGGER      = LoggerFactory.getLogger(MediaServer.class);
 
-  public static void main(String[] args) throws Exception {
-    // Start a user thread that runs the UPnP stack
-    Thread serverThread = new Thread(new MediaServer());
-    serverThread.setDaemon(false);
-    serverThread.start();
-  }
+  final UpnpService           upnpService = new UpnpServiceImpl(new DefaultUpnpServiceConfiguration());
 
   public void run() {
     try {
-      TmmModuleManager.getInstance().startUp();
-      MovieModuleManager.getInstance().startUp();
-
-      final UpnpService upnpService = new UpnpServiceImpl(new DefaultUpnpServiceConfiguration());
-
-      // Add the bound local device to the registry
       upnpService.getRegistry().addDevice(createDevice());
-
-      System.out.println("Press enter to exit");
-      BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-      String s = br.readLine();
-      upnpService.getRouter().shutdown();
-      upnpService.shutdown();
     }
     catch (Exception ex) {
-      System.err.println("Exception occured: " + ex);
-      ex.printStackTrace(System.err);
+      LOGGER.error("Exception occured: ", ex);
       System.exit(1);
     }
   }
@@ -63,7 +44,7 @@ public class MediaServer implements Runnable {
     DeviceDetails details = new DeviceDetails("Test", new ManufacturerDetails("tinyMediaManager", "http://tinymediamanager.org/"),
         new ModelDetails("BinLight2000", "A demo light with on/off switch.", "v1"));
 
-    System.out.println("Hello, i'm " + identity.getUdn().getIdentifierString());
+    LOGGER.info("Hello, i'm " + identity.getUdn().getIdentifierString());
 
     // Content Directory Service
     LocalService cds = new AnnotationLocalServiceBinder().read(ContentDirectoryService.class);

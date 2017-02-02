@@ -4,42 +4,44 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tinymediamanager.core.entities.MediaFile;
+import org.tinymediamanager.core.movie.MovieList;
 
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.Response.Status;
 
-public class Webserver extends NanoHTTPD {
+public class WebServer extends NanoHTTPD {
+  private static final Logger LOGGER = LoggerFactory.getLogger(WebServer.class);
 
-  public Webserver() throws IOException {
+  public WebServer() throws IOException {
     super(8008);
     start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
-    System.out.println("\nRunning! Point your browsers to http://localhost:8008/ \n");
-  }
-
-  public static void main(String[] args) {
-    try {
-      new Webserver();
-    }
-    catch (IOException ioe) {
-      System.err.println("Couldn't start server:\n" + ioe);
-    }
+    LOGGER.info("Webserver running on port 8008");
   }
 
   @Override
   public Response serve(IHTTPSession session) {
     String uri = session.getUri();
     if (uri.startsWith("/upnp")) {
-      String[] path = StringUtils.split(uri);
+      String[] path = StringUtils.split(uri, '/');
       // [0] = upnp
       // [1] = movie|tvshow
       // [2] = UUID of MediaEntity
       // [3] = MF relative path
 
-      MediaFile mf = new MediaFile();
-      return serveFile(session.getHeaders(), mf);
+      org.tinymediamanager.core.movie.entities.Movie m = MovieList.getInstance().lookupMovie(UUID.fromString(path[2]));
+      if (m != null) {
+        String fname = uri.substring(uri.indexOf(path[2]) + path[2].length() + 1);
+        MediaFile mf = new MediaFile();
+        mf.setPath(m.getPathNIO().toString());
+        mf.setFilename(fname);
+        return serveFile(session.getHeaders(), mf);
+      }
     }
 
     return newFixedLengthResponse(Response.Status.BAD_REQUEST, NanoHTTPD.MIME_PLAINTEXT, "BAD REQUEST");
@@ -48,13 +50,15 @@ public class Webserver extends NanoHTTPD {
   // CLONE from nanohttp-webserver (supporting ranges)
   // reworked for NIO Path and MF access
   Response serveFile(Map<String, String> header, MediaFile file) {
+    LOGGER.debug("Serving: " + file.getFileAsPath());
     Response res;
     try {
       String mime = MimeTypes.getMimeTypeAsString(file.getExtension());
+      long fileLen = Files.size(file.getFileAsPath());
 
       // Calculate etag
       String etag = Integer
-          .toHexString((file.getFileAsPath().toString() + Files.getLastModifiedTime(file.getFileAsPath()) + "" + file.getFilesize()).hashCode());
+          .toHexString((file.getFileAsPath().toString() + Files.getLastModifiedTime(file.getFileAsPath()) + "" + fileLen).hashCode());
 
       // Support (simple) skipping:
       long startFrom = 0;
@@ -85,7 +89,6 @@ public class Webserver extends NanoHTTPD {
 
       // Change return code and add Content-Range header when skipping is
       // requested
-      long fileLen = file.getFilesize();
 
       if (headerIfRangeMissingOrMatching && range != null && startFrom >= 0 && startFrom < fileLen) {
         // range request that matches current etag
@@ -151,6 +154,7 @@ public class Webserver extends NanoHTTPD {
       }
     }
     catch (IOException ioe) {
+      LOGGER.error("Error reading file", ioe);
       res = newFixedLengthResponse(Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: Reading file failed.");
     }
 

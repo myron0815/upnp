@@ -27,6 +27,8 @@ import org.fourthline.cling.support.model.Res;
 import org.fourthline.cling.support.model.SortCriterion;
 import org.fourthline.cling.support.model.container.StorageFolder;
 import org.fourthline.cling.support.model.item.Movie;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tinymediamanager.core.entities.MediaFile;
 import org.tinymediamanager.core.movie.MovieList;
 import org.tinymediamanager.core.movie.entities.MovieActor;
@@ -37,7 +39,9 @@ import org.tinymediamanager.thirdparty.NetworkUtil;
 
 public class ContentDirectoryService extends AbstractContentDirectoryService {
 
-  private static final String ID_ROOT    = "0";                              // fix, do not change
+  private static final Logger LOGGER     = LoggerFactory.getLogger(ContentDirectoryService.class);
+
+  private static final String ID_ROOT    = "0";                                                   // fix, do not change
   private static final String ID_MOVIES  = "1";
   private static final String ID_TVSHOWS = "2";
 
@@ -50,12 +54,12 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       // ITEMS:
       // https://github.com/4thline/cling/tree/master/support/src/main/java/org/fourthline/cling/support/model/item
 
-      System.out.println("ObjectId:" + objectID);
-      System.out.println("BrowseFlag:" + browseFlag);
-      System.out.println("Filter:" + filter);
-      System.out.println("FirstResult:" + firstResult);
-      System.out.println("MaxResults:" + maxResults);
-      System.out.println("OrderBy:" + Arrays.toString(orderby));
+      LOGGER.debug("ObjectId:" + objectID);
+      LOGGER.debug("BrowseFlag:" + browseFlag);
+      LOGGER.debug("Filter:" + filter);
+      LOGGER.debug("FirstResult:" + firstResult);
+      LOGGER.debug("MaxResults:" + maxResults);
+      LOGGER.debug("OrderBy:" + Arrays.toString(orderby));
 
       DIDLContent didl = new DIDLContent();
       DIDLParser dip = new DIDLParser();
@@ -79,7 +83,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
         didl.addContainer(cont);
 
         String ret = dip.generate(didl);
-        System.out.println(prettyFormat(ret, 2));
+        LOGGER.debug(prettyFormat(ret, 2));
         return new BrowseResult(ret, 2, 2);
       }
 
@@ -92,12 +96,12 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 
         if (didl.getItems().size() == 1) {
           String ret = dip.generate(didl);
-          System.out.println(prettyFormat(ret, 2));
+          LOGGER.debug(prettyFormat(ret, 2));
           return new BrowseResult(ret, 1, 1);
         }
         else {
           // check for TV
-          System.err.println("no movie with ID found - check TV");
+          LOGGER.warn("no movie with ID found - check TV");
         }
       }
 
@@ -117,12 +121,12 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       }
 
       String ret = dip.generate(didl);
-      System.out.println(prettyFormat(ret, 2));
+      LOGGER.debug(prettyFormat(ret, 2));
       return new BrowseResult(ret, count, count);
 
     }
     catch (Exception ex) {
-      ex.printStackTrace();
+      LOGGER.error("Browse failed", ex);
       throw new ContentDirectoryException(ContentDirectoryErrorCode.CANNOT_PROCESS, ex.toString());
     }
   }
@@ -145,7 +149,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
    */
   private Movie getUpnpMovie(org.tinymediamanager.core.movie.entities.Movie tmmMovie, boolean full) {
 
-    System.out.println(tmmMovie.getTitle());
+    LOGGER.debug(tmmMovie.getTitle());
     Movie m = new Movie();
     try {
       m.setId(tmmMovie.getDbId().toString());
@@ -188,13 +192,14 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       }
 
       for (MediaFile mf : tmmMovie.getMediaFiles()) {
+        String rel = tmmMovie.getPathNIO().relativize(mf.getFileAsPath()).toString().replaceAll("\\\\", "/");
         Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(),
-            "http://" + IP + "/upnp/movies/" + tmmMovie.getDbId().toString() + "/" + mf.getFilename());
+            "http://" + IP + ":8008/upnp/movies/" + tmmMovie.getDbId().toString() + "/" + rel);
         m.addResource(r);
       }
     }
     catch (Exception e) {
-      e.printStackTrace();
+      LOGGER.error("Error getting TMM movie", e);
     }
     return m;
   }
@@ -212,7 +217,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       return xmlOutput.getWriter().toString();
     }
     catch (Exception e) {
-      throw new RuntimeException(e);
+      return "! error parsing xml !";
     }
   }
 }
