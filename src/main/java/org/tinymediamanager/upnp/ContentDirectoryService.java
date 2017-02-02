@@ -5,6 +5,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Source;
@@ -20,12 +21,11 @@ import org.fourthline.cling.support.contentdirectory.DIDLParser;
 import org.fourthline.cling.support.model.BrowseFlag;
 import org.fourthline.cling.support.model.BrowseResult;
 import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.DIDLObject.Class;
 import org.fourthline.cling.support.model.DIDLObject.Property.DC;
 import org.fourthline.cling.support.model.PersonWithRole;
 import org.fourthline.cling.support.model.Res;
 import org.fourthline.cling.support.model.SortCriterion;
-import org.fourthline.cling.support.model.container.Container;
+import org.fourthline.cling.support.model.container.StorageFolder;
 import org.fourthline.cling.support.model.item.Movie;
 import org.tinymediamanager.core.entities.MediaFile;
 import org.tinymediamanager.core.movie.MovieList;
@@ -37,13 +37,11 @@ import org.tinymediamanager.thirdparty.NetworkUtil;
 
 public class ContentDirectoryService extends AbstractContentDirectoryService {
 
-  private static final String ID_ROOT         = "0";
-  private static final String ID_MOVIES       = "1";
-  private static final String ID_TVSHOWS      = "2";
+  private static final String ID_ROOT    = "0";                              // fix, do not change
+  private static final String ID_MOVIES  = "1";
+  private static final String ID_TVSHOWS = "2";
 
-  private static final Class  CONTAINER_CLASS = new Class("object.container");
-
-  private static final String ip              = NetworkUtil.getMachineIPAddress();
+  private static final String IP         = NetworkUtil.getMachineIPAddress();
 
   @Override
   public BrowseResult browse(String objectID, BrowseFlag browseFlag, String filter, long firstResult, long maxResults, SortCriterion[] orderby)
@@ -68,18 +66,16 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       }
       else if (objectID.equals(ID_ROOT) && browseFlag.equals(BrowseFlag.DIRECT_CHILDREN)) {
         // build first level structure
-        Container cont = new Container();
+        StorageFolder cont = new StorageFolder();
         cont.setId(ID_MOVIES);
         cont.setParentID(ID_ROOT);
         cont.setTitle("Movies");
-        cont.setClazz(CONTAINER_CLASS);
         didl.addContainer(cont);
 
-        cont = new Container();
+        cont = new StorageFolder();
         cont.setId(ID_TVSHOWS);
         cont.setParentID(ID_ROOT);
         cont.setTitle("TV Shows");
-        cont.setClazz(CONTAINER_CLASS);
         didl.addContainer(cont);
 
         String ret = dip.generate(didl);
@@ -89,11 +85,11 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 
       if (browseFlag.equals(BrowseFlag.METADATA)) {
         // get specific objectID and ALL the metadata
-        for (org.tinymediamanager.core.movie.entities.Movie m : MovieList.getInstance().getMovies()) {
-          if (objectID.equals(m.getDbId().toString())) {
-            didl.addItem(getUpnpMovie(m));
-          }
+        org.tinymediamanager.core.movie.entities.Movie m = MovieList.getInstance().lookupMovie(UUID.fromString(objectID));
+        if (m != null) {
+          didl.addItem(getUpnpMovie(m, true));
         }
+
         if (didl.getItems().size() == 1) {
           String ret = dip.generate(didl);
           System.out.println(prettyFormat(ret, 2));
@@ -106,21 +102,16 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       }
 
       int count = 0;
-      // just add basic things like title - no complete metadata needed (might be too slow)
+      // just add basic things like title - no complete metadata needed (might be too big/slow)
       if (ID_MOVIES.equals(objectID)) {
         for (org.tinymediamanager.core.movie.entities.Movie m : MovieList.getInstance().getMovies()) {
-          Movie u = new Movie(m.getDbId().toString(), ID_MOVIES, m.getTitle(), "?creator?", null);
-          for (MediaFile mf : m.getMediaFiles()) {
-            Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(), "http://" + ip + "/upnp/" + mf.getFilename());
-            u.addResource(r);
-          }
-          didl.addItem(u);
+          didl.addItem(getUpnpMovie(m, false));
         }
         count = didl.getItems().size();
       }
       else if (ID_TVSHOWS.equals(objectID)) {
         for (org.tinymediamanager.core.tvshow.entities.TvShow m : TvShowList.getInstance().getTvShows()) {
-          // didl.addItem(getUpnpTvShow(m));
+          // didl.addItem(getUpnpTvShow(m, false));
         }
         count = didl.getItems().size();
       }
@@ -143,54 +134,64 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
     return super.search(containerId, searchCriteria, filter, firstResult, maxResults, orderBy);
   }
 
-  private Movie getUpnpMovie(org.tinymediamanager.core.movie.entities.Movie tmmMovie) {
+  /**
+   * wraps a TMM movie into a UPNP movie/video item object
+   * 
+   * @param tmmMovie
+   *          out movie
+   * @param full
+   *          full details, or when false just the mandatory for a directory listing (title, and a few others)
+   * @return
+   */
+  private Movie getUpnpMovie(org.tinymediamanager.core.movie.entities.Movie tmmMovie, boolean full) {
 
     System.out.println(tmmMovie.getTitle());
     Movie m = new Movie();
     try {
       m.setId(tmmMovie.getDbId().toString());
       m.setParentID(ID_MOVIES);
-
       m.addProperty(new DC.DATE(tmmMovie.getYear())); // no setDate on Movie (but on other items)???
-
-      // TODO: m.setDirectors();
       m.setTitle(tmmMovie.getTitle());
-      m.setDescription(tmmMovie.getPlot());
-      m.setLanguage(tmmMovie.getSpokenLanguages());
-      m.setRating(String.valueOf(tmmMovie.getRating()));
 
-      List<String> genres = new ArrayList<>();
-      for (MediaGenres g : tmmMovie.getGenres()) {
-        genres.add(g.getLocalizedName());
-      }
-      if (!genres.isEmpty()) {
-        String[] arr = genres.toArray(new String[genres.size()]);
-        m.setGenres(arr);
-      }
+      if (full) {
+        // TODO: m.setDirectors();
+        m.setDescription(tmmMovie.getPlot());
+        m.setLanguage(tmmMovie.getSpokenLanguages());
+        m.setRating(String.valueOf(tmmMovie.getRating()));
 
-      List<PersonWithRole> persons = new ArrayList<>();
-      for (MovieActor a : tmmMovie.getActors()) {
-        persons.add(new PersonWithRole(a.getName(), a.getCharacter()));
-      }
-      if (!persons.isEmpty()) {
-        PersonWithRole[] arr = persons.toArray(new PersonWithRole[persons.size()]);
-        m.setActors(arr);
-      }
+        List<String> genres = new ArrayList<>();
+        for (MediaGenres g : tmmMovie.getGenres()) {
+          genres.add(g.getLocalizedName());
+        }
+        if (!genres.isEmpty()) {
+          String[] arr = genres.toArray(new String[genres.size()]);
+          m.setGenres(arr);
+        }
 
-      persons = new ArrayList<>();
-      for (MovieProducer a : tmmMovie.getProducers()) {
-        persons.add(new PersonWithRole(a.getName(), a.getCharacter()));
-      }
-      if (!persons.isEmpty()) {
-        PersonWithRole[] arr = persons.toArray(new PersonWithRole[persons.size()]);
-        m.setProducers(arr);
+        List<PersonWithRole> persons = new ArrayList<>();
+        for (MovieActor a : tmmMovie.getActors()) {
+          persons.add(new PersonWithRole(a.getName(), a.getCharacter()));
+        }
+        if (!persons.isEmpty()) {
+          PersonWithRole[] arr = persons.toArray(new PersonWithRole[persons.size()]);
+          m.setActors(arr);
+        }
+
+        persons = new ArrayList<>();
+        for (MovieProducer a : tmmMovie.getProducers()) {
+          persons.add(new PersonWithRole(a.getName(), a.getCharacter()));
+        }
+        if (!persons.isEmpty()) {
+          PersonWithRole[] arr = persons.toArray(new PersonWithRole[persons.size()]);
+          m.setProducers(arr);
+        }
       }
 
       for (MediaFile mf : tmmMovie.getMediaFiles()) {
-        Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(), "http://10.0.0.1/files/" + mf.getFilename());
+        Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(),
+            "http://" + IP + "/upnp/movies/" + tmmMovie.getDbId().toString() + "/" + mf.getFilename());
         m.addResource(r);
       }
-
     }
     catch (Exception e) {
       e.printStackTrace();

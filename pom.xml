@@ -30,5 +30,10 @@
 			<artifactId>tinyMediaManager</artifactId>
 			<version>2.9.3-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+			<groupId>org.nanohttpd</groupId>
+			<artifactId>nanohttpd</artifactId>
+			<version>2.3.1</version>
+		</dependency>
 	</dependencies>
 </project>

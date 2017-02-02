@@ -35,4 +35,14 @@ public class ContentDirectoryBrowseTest {
 
   }
 
+  @Test
+  public void browseMetadata() throws Exception {
+    TmmModuleManager.getInstance().startUp();
+    MovieModuleManager.getInstance().startUp();
+
+    ContentDirectoryService s = new ContentDirectoryService();
+    s.browse("2a46cf62-df0e-4fb5-86d4-0ce4d67325e2", BrowseFlag.METADATA, "", 1, 1, new SortCriterion[] {});
+
+  }
+
 }
