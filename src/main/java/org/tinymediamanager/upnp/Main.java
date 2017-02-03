@@ -16,22 +16,16 @@ public class Main {
     TmmModuleManager.getInstance().startUp();
     MovieModuleManager.getInstance().startUp();
 
-    // start WebServer
-    WebServer ws = new WebServer();
-
-    // start MediaServer
-    MediaServer ms = new MediaServer();
-    Thread upnpThread = new Thread(ms);
-    upnpThread.setDaemon(false);
-    upnpThread.start();
+    Upnp u = Upnp.getInstance();
+    u.startWebServer();
+    u.startMediaServer();
 
     // shutdown
     LOGGER.info("Press enter to exit");
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     String s = br.readLine();
-    ms.upnpService.getRouter().shutdown();
-    ms.upnpService.shutdown();
-    ws.closeAllConnections();
+
+    u.shutdown();
   }
 
 }

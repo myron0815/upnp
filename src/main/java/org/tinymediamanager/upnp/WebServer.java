@@ -36,13 +36,21 @@ public class WebServer extends NanoHTTPD {
       // [2] = UUID of MediaEntity
       // [3] = MF relative path
 
-      org.tinymediamanager.core.movie.entities.Movie m = MovieList.getInstance().lookupMovie(UUID.fromString(path[2]));
-      if (m != null) {
-        String fname = uri.substring(uri.indexOf(path[2]) + path[2].length() + 1);
-        MediaFile mf = new MediaFile();
-        mf.setPath(m.getPathNIO().toString());
-        mf.setFilename(fname);
-        return serveFile(session, session.getHeaders(), mf);
+      if (path.length > 3) {
+        try {
+          UUID uuid = UUID.fromString(path[2]);
+          org.tinymediamanager.core.movie.entities.Movie m = MovieList.getInstance().lookupMovie(uuid);
+          if (m != null) {
+            String fname = uri.substring(uri.indexOf(path[2]) + path[2].length() + 1);
+            MediaFile mf = new MediaFile();
+            mf.setPath(m.getPathNIO().toString());
+            mf.setFilename(fname);
+            return serveFile(session, session.getHeaders(), mf);
+          }
+        }
+        catch (IllegalArgumentException e) {
+          LOGGER.warn("Seems not to be a valid MediaEntity", e);
+        }
       }
     }
 
