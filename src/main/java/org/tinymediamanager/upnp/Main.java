@@ -22,8 +22,11 @@ public class Main {
 
     // shutdown
     LOGGER.info("Press enter to exit");
-    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-    String s = br.readLine();
+    String s = "dummy";
+    while (!s.isEmpty()) {
+      BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+      s = br.readLine();
+    }
 
     u.shutdown();
   }

@@ -30,6 +30,7 @@ import org.fourthline.cling.support.model.container.StorageFolder;
 import org.fourthline.cling.support.model.item.Movie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tinymediamanager.core.MediaFileType;
 import org.tinymediamanager.core.entities.MediaFile;
 import org.tinymediamanager.core.movie.MovieList;
 import org.tinymediamanager.core.movie.entities.MovieActor;
@@ -42,7 +43,9 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 
   private static final Logger LOGGER     = LoggerFactory.getLogger(ContentDirectoryService.class);
 
-  private static final String ID_ROOT    = "0";                                                   // fix, do not change
+  // ROOT is fix 0 , do not change!!
+  private static final String ID_ROOT    = "0";
+
   private static final String ID_MOVIES  = "1";
   private static final String ID_TVSHOWS = "2";
 
@@ -193,7 +196,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
         }
       }
 
-      for (MediaFile mf : tmmMovie.getMediaFiles()) {
+      for (MediaFile mf : tmmMovie.getMediaFiles(MediaFileType.VIDEO)) {
         String rel = tmmMovie.getPathNIO().relativize(mf.getFileAsPath()).toString().replaceAll("\\\\", "/");
         String url = "http://" + IP + ":8008/upnp/movies/" + tmmMovie.getDbId().toString() + "/" + URLEncoder.encode(rel, "UTF-8");
         Res r = new Res(MimeTypes.getMimeType(mf.getExtension()), mf.getFilesize(), url);

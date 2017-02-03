@@ -16,21 +16,25 @@ import org.fourthline.cling.support.avtransport.callback.SetAVTransportURI;
 import org.fourthline.cling.support.contentdirectory.DIDLParser;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.item.Movie;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.tinymediamanager.core.entities.MediaFile;
 
 public class PlayOnRenderer {
+  private static final Logger LOGGER  = LoggerFactory.getLogger(PlayOnRenderer.class);
 
-  Service service = null;
+  Service                     service = null;
 
   public PlayOnRenderer(Service service) {
     this.service = service;
   }
 
-  private void play(Movie m) {
+  private void play(Movie m, MediaFile mf) {
     String meta = getMeta(m);
-    ActionCallback setAVTransportURIAction = new SetAVTransportURI(service, "http://10.0.0.1/file.mp3", meta) {
+    ActionCallback setAVTransportURIAction = new SetAVTransportURI(service, mf.getFileAsPath().toString(), meta) {
       @Override
       public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
-        // Something was wrong
+        LOGGER.warn("Error playing MF: " + defaultMsg);
       }
     };
   }

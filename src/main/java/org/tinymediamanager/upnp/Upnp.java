@@ -49,6 +49,10 @@ public class Upnp {
     return ret;
   }
 
+  /**
+   * starts a WebServer for accessing MediaFiles over UPNP<br>
+   * In /upnp/(movie|tvshow)/UUIDofMediaEntity/(folder)/file.ext format
+   */
   public void startWebServer() {
     try {
       if (this.webServer == null) {
