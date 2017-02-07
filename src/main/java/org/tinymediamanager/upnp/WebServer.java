@@ -27,7 +27,7 @@ public class WebServer extends NanoHTTPD {
   @Override
   public Response serve(IHTTPSession session) {
     String uri = session.getUri();
-    LOGGER.info("Incoming: " + uri);
+    LOGGER.info("Incoming: " + session.getMethod() + " " + uri);
 
     if (uri.startsWith("/upnp")) {
       String[] path = StringUtils.split(uri, '/');
@@ -45,7 +45,7 @@ public class WebServer extends NanoHTTPD {
             MediaFile mf = new MediaFile();
             mf.setPath(m.getPathNIO().toString());
             mf.setFilename(fname);
-            return serveFile(session, session.getHeaders(), mf);
+            return serveFile(session, mf);
           }
         }
         catch (IllegalArgumentException e) {
@@ -59,9 +59,11 @@ public class WebServer extends NanoHTTPD {
 
   // CLONE from nanohttp-webserver (supporting ranges)
   // reworked for NIO Path and MF access, and not sending content on HEAD requests
-  private Response serveFile(IHTTPSession session, Map<String, String> header, MediaFile file) {
+  private Response serveFile(IHTTPSession session, MediaFile file) {
     LOGGER.debug("Serving: " + file.getFileAsPath());
     Response res;
+    Map<String, String> header = session.getHeaders();
+    LOGGER.debug("Headers: " + header);
     try {
       String mime = MimeTypes.getMimeTypeAsString(file.getExtension());
       long fileLen = Files.size(file.getFileAsPath());
