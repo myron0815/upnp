@@ -22,9 +22,17 @@ import org.fourthline.cling.support.avtransport.callback.Stop;
 import org.fourthline.cling.transport.RouterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tinymediamanager.thirdparty.NetworkUtil;
 
 public class Upnp {
   private static final Logger LOGGER        = LoggerFactory.getLogger(Upnp.class);
+  public static final String  IP            = NetworkUtil.getMachineIPAddress();
+
+  // ROOT is fix 0 , do not change!!
+  public static final String  ID_ROOT       = "0";
+  public static final String  ID_MOVIES     = "1";
+  public static final String  ID_TVSHOWS    = "2";
+
   private static Upnp         instance;
   private UpnpService         upnpService   = null;
   private WebServer           webServer     = null;
@@ -48,7 +56,7 @@ public class Upnp {
    * Starts out UPNP Service / Listener
    */
   public void createUpnpService() {
-    if (upnpService == null) {
+    if (this.upnpService == null) {
       this.upnpService = new UpnpServiceImpl(UpnpListener.getListener());
     }
   }
@@ -58,7 +66,8 @@ public class Upnp {
    * Should be available shortly via getAvailablePlayers()
    */
   public void sendPlayerSearchRequest() {
-    upnpService.getControlPoint().search(new UDADeviceTypeHeader(new UDADeviceType("MediaRenderer")));
+    createUpnpService();
+    this.upnpService.getControlPoint().search(new UDADeviceTypeHeader(new UDADeviceType("MediaRenderer")));
   }
 
   /**
@@ -68,8 +77,9 @@ public class Upnp {
    * @return List of devices
    */
   public ArrayList<Device> getAvailablePlayers() {
+    createUpnpService();
     ArrayList<Device> ret = new ArrayList<>();
-    for (Device device : upnpService.getRegistry().getDevices()) {
+    for (Device device : this.upnpService.getRegistry().getDevices()) {
       if (device.getType().getType().equals("MediaRenderer")) {
         ret.add(device);
       }
@@ -86,7 +96,7 @@ public class Upnp {
   public void setPlayer(Device device) {
     this.playerService = device.findService(new UDAServiceId("AVTransport"));
     if (this.playerService == null) {
-      LOGGER.warn("Could not find AVTransportservice on device " + device.getDisplayString());
+      LOGGER.warn("Could not find AVTransportService on device " + device.getDisplayString());
     }
   }
 
@@ -95,19 +105,24 @@ public class Upnp {
    * 
    * @param url
    */
-  public void playFile(String url) {
+  public void playFile(org.tinymediamanager.core.movie.entities.Movie tmmMovie, String url) {
     if (this.playerService == null) {
       LOGGER.warn("No player set - did you call setPlayer() ?");
       return;
     }
 
-    ActionCallback setAVTransportURIAction = new SetAVTransportURI(this.playerService, url, "NO METADATA") {
+    String meta = "NO METADATA";
+    if (tmmMovie != null) {
+
+    }
+
+    ActionCallback setAVTransportURIAction = new SetAVTransportURI(this.playerService, url, meta) {
       @Override
       public void failure(ActionInvocation invocation, UpnpResponse operation, String defaultMsg) {
         LOGGER.warn("Setting URL for player failed! " + defaultMsg);
       }
     };
-    upnpService.getControlPoint().execute(setAVTransportURIAction);
+    this.upnpService.getControlPoint().execute(setAVTransportURIAction);
 
     ActionCallback playAction = new Play(this.playerService) {
       @Override
@@ -115,7 +130,7 @@ public class Upnp {
         LOGGER.warn("Playing failed! " + defaultMsg);
       }
     };
-    upnpService.getControlPoint().execute(playAction);
+    this.upnpService.getControlPoint().execute(playAction);
   }
 
   /**
@@ -123,7 +138,6 @@ public class Upnp {
    */
   public void stopPlay() {
     if (this.playerService == null) {
-      LOGGER.debug("No player set - no need to stop");
       return;
     }
 
@@ -133,7 +147,7 @@ public class Upnp {
         LOGGER.warn("Stopping failed! " + defaultMsg);
       }
     };
-    upnpService.getControlPoint().execute(stopAction);
+    this.upnpService.getControlPoint().execute(stopAction);
 
   }
 
@@ -173,6 +187,15 @@ public class Upnp {
 
   public void stopMediaServer() {
     if (this.upnpService != null) {
+      this.upnpService.getRegistry().removeAllLocalDevices();
+    }
+  }
+
+  public void shutdown() {
+    stopPlay();
+    stopWebServer();
+    stopMediaServer();
+    if (this.upnpService != null) {
       try {
         this.upnpService.getRouter().shutdown();
       }
@@ -181,11 +204,5 @@ public class Upnp {
       }
       this.upnpService.shutdown();
     }
-  }
-
-  public void shutdown() {
-    stopPlay();
-    stopWebServer();
-    stopMediaServer();
   }
 }

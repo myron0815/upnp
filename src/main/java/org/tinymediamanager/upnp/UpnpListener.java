@@ -28,6 +28,7 @@ public class UpnpListener {
       }
 
       public void remoteDeviceUpdated(Registry registry, RemoteDevice device) {
+        // use TRACE, do not care about that log spam
         LOGGER.trace("Remote device updated: " + device.getDisplayString());
       }
 
