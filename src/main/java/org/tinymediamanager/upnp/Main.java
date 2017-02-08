@@ -2,7 +2,6 @@ package org.tinymediamanager.upnp;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.logging.LogManager;
 
 import org.fourthline.cling.model.meta.Device;
 import org.slf4j.Logger;
@@ -21,7 +20,7 @@ public class Main {
     TvShowModuleManager.getInstance().startUp();
 
     // JUL-to-SLF4J
-    LogManager.getLogManager().reset();
+    // LogManager.getLogManager().reset();
     // SLF4JBridgeHandler.removeHandlersForRootLogger();
     // SLF4JBridgeHandler.install();
     // java.util.logging.Logger.getLogger("global").setLevel(Level.ALL);

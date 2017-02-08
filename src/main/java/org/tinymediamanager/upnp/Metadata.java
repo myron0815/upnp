@@ -37,13 +37,12 @@ public class Metadata {
     LOGGER.debug(tmmMovie.getTitle());
     Movie m = new Movie();
     try {
-      m.setId(tmmMovie.getDbId().toString());
+      m.setId(Upnp.ID_MOVIES + "/" + tmmMovie.getDbId().toString());
       m.setParentID(Upnp.ID_MOVIES);
       if (!tmmMovie.getYear().isEmpty()) {
         m.addProperty(new DC.DATE(tmmMovie.getYear())); // no setDate on Movie (but on other items)???
       }
       m.setTitle(tmmMovie.getTitle());
-      m.setCreator("tmm"); // Primary content creator or owner of the object
 
       if (full) {
         // TODO: m.setDirectors();
@@ -107,10 +106,13 @@ public class Metadata {
     Movie m = new Movie(); // yes, it is a UPNP movie object!
 
     try {
-      m.setId(show.getDbId().toString());
+      // 2/UUID/S/E
+      m.setId(Upnp.ID_TVSHOWS + "/" + show.getDbId().toString() + "/" + ep.getSeason() + "/" + ep.getEpisode());
       m.setParentID(Upnp.ID_TVSHOWS);
-      m.addProperty(new DC.DATE(ep.getYear())); // no setDate on Movie (but on other items)???
-      m.setTitle(ep.getTitle());
+      if (!ep.getYear().isEmpty()) {
+        m.addProperty(new DC.DATE(ep.getYear())); // no setDate on Movie (but on other items)???
+      }
+      m.setTitle("S" + lz(ep.getSeason()) + "E" + lz(ep.getEpisode()) + " " + ep.getTitle());
       m.setCreator("tmm"); // Primary content creator or owner of the object
 
       if (full) {
@@ -148,5 +150,16 @@ public class Metadata {
     }
 
     return m;
+  }
+
+  /**
+   * add leadingZero if only 1 char
+   * 
+   * @param num
+   *          the number
+   * @return the string with a leading 0
+   */
+  private static String lz(int num) {
+    return String.format("%02d", num);
   }
 }

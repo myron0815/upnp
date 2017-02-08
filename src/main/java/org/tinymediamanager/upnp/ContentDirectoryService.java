@@ -49,10 +49,52 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
       DIDLContent didl = new DIDLContent();
 
       String[] path = StringUtils.split(objectID, '/');
+      // [0] = 0/1/2
+      // [1] = UUID
+      // [2] = Season
+      // [3] = Episode
 
-      if (browseFlag.equals(BrowseFlag.DIRECT_CHILDREN)) {
+      // =====================================================
+      // get full metadata of object (after clicking on item)
+      // =====================================================
+      if (browseFlag.equals(BrowseFlag.METADATA)) {
+
+        if (path[0].equals(Upnp.ID_ROOT)) {
+          LOGGER.warn("Unable to get Metadata from root object!");
+          throw new ContentDirectoryException(ContentDirectoryErrorCode.CANNOT_PROCESS, "cannot get metadata from root");
+        }
+        else if (path[0].equals(Upnp.ID_MOVIES)) {
+          if (path.length == 2) {
+            org.tinymediamanager.core.movie.entities.Movie m = MovieList.getInstance().lookupMovie(UUID.fromString(path[1]));
+            if (m != null) {
+              didl.addItem(Metadata.getUpnpMovie(m, true));
+              return returnResult(didl);
+            }
+          }
+          throw new ContentDirectoryException(ContentDirectoryErrorCode.NO_SUCH_OBJECT, "cannot get metadata for " + objectID);
+        }
+        else if (path[0].equals(Upnp.ID_TVSHOWS)) {
+          if (path.length > 1) {
+            org.tinymediamanager.core.tvshow.entities.TvShow t = TvShowList.getInstance().lookupTvShow(UUID.fromString(path[1]));
+            if (t != null) {
+              TvShowEpisode ep = t.getEpisode(getInt(path[2]), getInt(path[2]));
+              if (ep != null) {
+                didl.addItem(Metadata.getUpnpTvShowEpisode(t, ep, true));
+                return returnResult(didl);
+              }
+            }
+          }
+          throw new ContentDirectoryException(ContentDirectoryErrorCode.NO_SUCH_OBJECT, "cannot get metadata for " + objectID);
+        }
+
+      }
+      // =====================================================
+      // Browse directory (after clicking on container)
+      // =====================================================
+      else if (browseFlag.equals(BrowseFlag.DIRECT_CHILDREN)) {
+
         // create ROOT folder structure (no items)
-        if (objectID.equals(Upnp.ID_ROOT)) {
+        if (path[0].equals(Upnp.ID_ROOT)) {
           StorageFolder cont = new StorageFolder();
           cont.setId(Upnp.ID_MOVIES);
           cont.setParentID(Upnp.ID_ROOT);
@@ -65,69 +107,43 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
           cont.setTitle(BUNDLE.getString("tmm.tvshows"));
           didl.addContainer(cont);
 
-          return returnContent(didl);
+          return returnResult(didl);
         }
-        else if (objectID.equals(Upnp.ID_MOVIES)) {
+        else if (path[0].equals(Upnp.ID_MOVIES)) {
           // create MOVIE folder structure -> items
           for (org.tinymediamanager.core.movie.entities.Movie m : MovieList.getInstance().getMovies()) {
             didl.addItem(Metadata.getUpnpMovie(m, false));
           }
-          return returnContent(didl);
+          return returnResult(didl);
         }
-        else if (objectID.equals(Upnp.ID_TVSHOWS)) {
-          // create TVSHOW folder structure -> container
-          StorageFolder cont = new StorageFolder();
-          for (org.tinymediamanager.core.tvshow.entities.TvShow t : TvShowList.getInstance().getTvShows()) {
-            cont = new StorageFolder();
-            cont.setId(Upnp.ID_TVSHOWS);
-            cont.setParentID(Upnp.ID_ROOT);
-            cont.setTitle(t.getTitle());
-            didl.addContainer(cont);
+        else if (path[0].equals(Upnp.ID_TVSHOWS)) {
+          if (path.length == 1) {
+            // create TVSHOW folder structure -> container
+            StorageFolder cont;
+            for (org.tinymediamanager.core.tvshow.entities.TvShow t : TvShowList.getInstance().getTvShows()) {
+              cont = new StorageFolder();
+              cont.setId(Upnp.ID_TVSHOWS + "/" + t.getDbId());
+              cont.setParentID(Upnp.ID_ROOT);
+              cont.setTitle(t.getTitle());
+              didl.addContainer(cont);
+            }
+            return returnResult(didl);
           }
-          return returnContent(didl);
-        }
-        else {
-          // get Movie/Show with objectID
-          // if movie, play
-          // if show, browse objectID !!!
-
-          if (path.length == 2) {
-            // build items of episodes
+          else if (path.length == 2) {
+            // create EPISODE items
             UUID uuid = UUID.fromString(path[1]);
             org.tinymediamanager.core.tvshow.entities.TvShow show = TvShowList.getInstance().lookupTvShow(uuid);
             for (TvShowEpisode ep : show.getEpisodes()) {
               didl.addItem(Metadata.getUpnpTvShowEpisode(show, ep, false));
             }
-            return returnContent(didl);
+            return returnResult(didl);
           }
+        }
+        else {
+          LOGGER.warn("Whoops. There was an error in our directory structure. " + objectID);
         }
       }
-
-      // get full metadata of one object
-      if (browseFlag.equals(BrowseFlag.METADATA)) {
-        if (path[0].equals(Upnp.ID_ROOT)) {
-          LOGGER.warn("Unable to get Metadata from root object!");
-          return new BrowseResult(null, 0, 0);
-        }
-        else if (path[0].equals(Upnp.ID_MOVIES)) {
-          org.tinymediamanager.core.movie.entities.Movie m = MovieList.getInstance().lookupMovie(UUID.fromString(path[1]));
-          if (m != null) {
-            didl.addItem(Metadata.getUpnpMovie(m, true));
-          }
-          if (didl.getItems().size() == 1) {
-            return returnContent(didl);
-          }
-          else {
-            // check for TV
-            LOGGER.warn("no movie with ID " + objectID + " found");
-            return new BrowseResult(null, 0, 0);
-          }
-        }
-        else if (path[0].equals(Upnp.ID_TVSHOWS)) {
-        }
-      }
-
-      return new BrowseResult(null, 0, 0);
+      throw new ContentDirectoryException(ContentDirectoryErrorCode.CANNOT_PROCESS, "BrowseFlag wrong " + browseFlag);
     }
     catch (Exception ex) {
       LOGGER.error("Browse failed", ex);
@@ -135,12 +151,23 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
     }
   }
 
-  private BrowseResult returnContent(DIDLContent didl) throws Exception {
+  private BrowseResult returnResult(DIDLContent didl) throws Exception {
     DIDLParser dip = new DIDLParser();
-    int count = didl.getItems().size();
+    int count = didl.getItems().size() + didl.getContainers().size();
     String ret = dip.generate(didl);
     LOGGER.debug(prettyFormat(ret, 2));
     return new BrowseResult(ret, count, count);
+  }
+
+  private int getInt(String s) {
+    int i = 0;
+    try {
+      i = Integer.valueOf(s);
+    }
+    catch (NumberFormatException nfe) {
+      LOGGER.warn("Cannot parse number from " + s);
+    }
+    return i;
   }
 
   @Override

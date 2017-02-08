@@ -27,7 +27,81 @@ import org.tinymediamanager.upnp.ContentDirectoryService;
 
 public class ContentDirectoryBrowseTest {
 
-  private static final String KODI_FILTER = "dc:date,dc:description,upnp:longDescription,upnp:genre,res,res@duration,res@size,upnp:albumArtURI,upnp:rating,upnp:lastPlaybackPosition,upnp:lastPlaybackTime,upnp:playbackCount,upnp:originalTrackNumber,upnp:episodeNumber,upnp:programTitle,upnp:seriesTitle,upnp:album,upnp:artist,upnp:author,upnp:director,dc:publisher,searchable,childCount,dc:title,dc:creator,upnp:actor,res@resolution,upnp:episodeCount,upnp:episodeSeason,xbmc:dateadded,xbmc:rating,xbmc:votes,xbmc:artwork,xbmc:uniqueidentifier,xbmc:country,xbmc:userrating";
+  private static final String                  KODI_FILTER = "dc:date,dc:description,upnp:longDescription,upnp:genre,res,res@duration,res@size,upnp:albumArtURI,upnp:rating,upnp:lastPlaybackPosition,upnp:lastPlaybackTime,upnp:playbackCount,upnp:originalTrackNumber,upnp:episodeNumber,upnp:programTitle,upnp:seriesTitle,upnp:album,upnp:artist,upnp:author,upnp:director,dc:publisher,searchable,childCount,dc:title,dc:creator,upnp:actor,res@resolution,upnp:episodeCount,upnp:episodeSeason,xbmc:dateadded,xbmc:rating,xbmc:votes,xbmc:artwork,xbmc:uniqueidentifier,xbmc:country,xbmc:userrating";
+  private static final ContentDirectoryService CDS         = new ContentDirectoryService();
+
+  // =====================================================
+  // directory browsing
+  // =====================================================
+  @Test
+  public void browseRoot() throws ContentDirectoryException {
+    browse("0", BrowseFlag.DIRECT_CHILDREN);
+  }
+
+  @Test
+  public void browseMovies() throws ContentDirectoryException {
+    browse("1", BrowseFlag.DIRECT_CHILDREN);
+  }
+
+  @Test
+  public void browseTvShow() throws ContentDirectoryException {
+    browse("2", BrowseFlag.DIRECT_CHILDREN);
+  }
+
+  @Test
+  public void browseEpisode() throws ContentDirectoryException {
+    browse("2/d5e46aef-e85a-4a30-a486-9343d1060f7a", BrowseFlag.DIRECT_CHILDREN);
+  }
+
+  // =====================================================
+  // meta data information
+  // =====================================================
+  @Test
+  public void metadataMovie() throws ContentDirectoryException {
+    browse("1/2a46cf62-df0e-4fb5-86d4-0ce4d67325e2", BrowseFlag.METADATA);
+  }
+
+  @Test
+  public void metadataEpisode() throws ContentDirectoryException {
+    browse("2/d5e46aef-e85a-4a30-a486-9343d1060f7a/1/6", BrowseFlag.METADATA);
+  }
+
+  // =====================================================
+  // INVALID exception tests
+  // =====================================================
+  @Test(expected = ContentDirectoryException.class)
+  public void metadataRootContainer() throws ContentDirectoryException {
+    browse("0", BrowseFlag.METADATA);
+  }
+
+  @Test(expected = ContentDirectoryException.class)
+  public void metadataMovieContainer() throws ContentDirectoryException {
+    browse("1", BrowseFlag.METADATA);
+  }
+
+  @Test(expected = ContentDirectoryException.class)
+  public void metadataTvShowContainer() throws ContentDirectoryException {
+    browse("2", BrowseFlag.METADATA);
+  }
+
+  @Test(expected = ContentDirectoryException.class)
+  public void invalidMovieUUID() throws ContentDirectoryException {
+    browse("1/00000000-0000-0000-0000-000000000000", BrowseFlag.METADATA);
+  }
+
+  @Test(expected = ContentDirectoryException.class)
+  public void invalidShowUUID() throws ContentDirectoryException {
+    browse("2/00000000-0000-0000-0000-000000000000/1/2", BrowseFlag.METADATA);
+  }
+
+  @Test(expected = ContentDirectoryException.class)
+  public void invalidEpisodeSE() throws ContentDirectoryException {
+    browse("2/d5e46aef-e85a-4a30-a486-9343d1060f7a/17/23", BrowseFlag.METADATA);
+  }
+
+  private void browse(String s, BrowseFlag b) throws ContentDirectoryException {
+    CDS.browse(s, b, "", 0, 200, new SortCriterion[] {});
+  }
 
   @BeforeClass
   public static void init() throws Exception {
@@ -41,49 +115,6 @@ public class ContentDirectoryBrowseTest {
     TvShowModuleManager.getInstance().shutDown();
     MovieModuleManager.getInstance().shutDown();
     TmmModuleManager.getInstance().shutDown();
-  }
-
-  @Test
-  public void browseRoot() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("0", BrowseFlag.DIRECT_CHILDREN, KODI_FILTER, 0, 200, new SortCriterion[] {});
-  }
-
-  @Test
-  public void browseMovies() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("1", BrowseFlag.DIRECT_CHILDREN, "", 0, 200, new SortCriterion[] {});
-  }
-
-  @Test
-  public void browseTvShow() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("2", BrowseFlag.DIRECT_CHILDREN, "", 0, 200, new SortCriterion[] {});
-  }
-
-  @Test
-  public void metadataRoot() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("0", BrowseFlag.METADATA, KODI_FILTER, 0, 200, new SortCriterion[] {});
-  }
-
-  @Test
-  public void metadataMovies() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("1", BrowseFlag.METADATA, "", 0, 200, new SortCriterion[] {});
-  }
-
-  @Test
-  public void metadataTvShow() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("2", BrowseFlag.METADATA, "", 0, 200, new SortCriterion[] {});
-  }
-
-  @Test
-  public void browseMetadata() throws ContentDirectoryException {
-    ContentDirectoryService s = new ContentDirectoryService();
-    s.browse("68bcb1d0-cc3f-440a-8de2-8eb82fb7cac5", BrowseFlag.METADATA, "", 1, 1, new SortCriterion[] {});
-
   }
 
 }
