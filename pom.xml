@@ -12,13 +12,6 @@
 	<artifactId>upnp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 
-	<repositories>
-		<repository>
-			<id>4thline.org-repo</id>
-			<url>http://4thline.org/m2</url>
-		</repository>
-	</repositories>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.fourthline.cling</groupId>
