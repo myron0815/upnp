@@ -99,12 +99,14 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
           cont.setId(Upnp.ID_MOVIES);
           cont.setParentID(Upnp.ID_ROOT);
           cont.setTitle(BUNDLE.getString("tmm.movies"));
+          cont.setChildCount(MovieList.getInstance().getMovieCount());
           didl.addContainer(cont);
 
           cont = new StorageFolder();
           cont.setId(Upnp.ID_TVSHOWS);
           cont.setParentID(Upnp.ID_ROOT);
           cont.setTitle(BUNDLE.getString("tmm.tvshows"));
+          cont.setChildCount(TvShowList.getInstance().getTvShowCount());
           didl.addContainer(cont);
 
           return returnResult(didl);
@@ -125,6 +127,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
               cont.setId(Upnp.ID_TVSHOWS + "/" + t.getDbId());
               cont.setParentID(Upnp.ID_ROOT);
               cont.setTitle(t.getTitle());
+              cont.setChildCount(t.getEpisodeCount());
               didl.addContainer(cont);
             }
             return returnResult(didl);
